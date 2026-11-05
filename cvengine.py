@@ -1,6 +1,7 @@
 import argparse
 import math
 import os
+import questionary
 import requests
 
 os.system("")
@@ -90,10 +91,40 @@ def query_package(name, version, ecosystem):
     return response.json().get("vulns", [])
 
 
+def choose_scan():
+    soon = "coming soon"
+    kind = questionary.select(
+        "TODO: what do you want to scan",
+        choices=[
+            "Packages",
+            questionary.Choice("A folder", disabled=soon),
+            questionary.Choice("System-wide", disabled=soon),
+        ],
+    ).ask()
+    if kind == "Packages":
+        return questionary.select(
+            "TODO: which packages",
+            choices=[
+                "pip",
+                questionary.Choice("npm", disabled=soon),
+                questionary.Choice("apt", disabled=soon),
+            ],
+        ).ask()
+    return None
+
+
 parser = argparse.ArgumentParser()
-parser.add_argument("package")
-parser.add_argument("version")
+parser.add_argument("package", nargs="?")
+parser.add_argument("version", nargs="?")
 args = parser.parse_args()
+
+if args.package is None:
+    source = choose_scan()
+    print(f"TODO: picked {source}")
+    raise SystemExit
+
+if args.version is None:
+    parser.error("version is required with a package")
 
 vulns = query_package(args.package, args.version, "PyPI")
 
