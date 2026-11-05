@@ -92,23 +92,14 @@ def query_package(name, version, ecosystem):
 
 
 def choose_scan():
-    soon = "coming soon"
     kind = questionary.select(
         "TODO: what do you want to scan",
-        choices=[
-            "Packages",
-            questionary.Choice("A folder", disabled=soon),
-            questionary.Choice("System-wide", disabled=soon),
-        ],
+        choices=["Packages"],
     ).ask()
     if kind == "Packages":
         return questionary.select(
             "TODO: which packages",
-            choices=[
-                "pip",
-                questionary.Choice("npm", disabled=soon),
-                questionary.Choice("apt", disabled=soon),
-            ],
+            choices=["pip"],
         ).ask()
     return None
 
