@@ -1,8 +1,11 @@
 import argparse
 import math
+import json
 import os
 import questionary
 import requests
+import subprocess
+import sys
 
 os.system("")
 
@@ -104,6 +107,16 @@ def choose_scan():
     return None
 
 
+def discover_pip():
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "list", "--format=json"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [(item["name"], item["version"], "PyPI") for item in json.loads(result.stdout)]
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument("package", nargs="?")
 parser.add_argument("version", nargs="?")
@@ -111,7 +124,11 @@ args = parser.parse_args()
 
 if args.package is None:
     source = choose_scan()
-    print(f"TODO: picked {source}")
+    if source == "pip":
+        packages = discover_pip()
+        print(f"TODO: found {len(packages)} packages")
+        for name, version, ecosystem in packages:
+            print(f"TODO: {name} {version} ({ecosystem})")
     raise SystemExit
 
 if args.version is None:
