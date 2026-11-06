@@ -128,12 +128,12 @@ def query_package(name, version, ecosystem):
 
 def choose_scan():
     kind = questionary.select(
-        "TODO: what do you want to scan",
+        "What are we scanning today?",
         choices=["Packages"],
     ).ask()
     if kind == "Packages":
         return questionary.select(
-            "TODO: which packages",
+            "Which packages?",
             choices=["pip"],
         ).ask()
     return None
@@ -164,7 +164,10 @@ if args.package is None:
             if vulns:
                 results.append((top_score(vulns), name, version, fix_version(vulns, version)))
         results.sort(key=lambda row: row[0] if row[0] is not None else -1, reverse=True)
-        print(f"TODO: scanned {len(packages)}, {len(results)} vulnerable")
+        if not results:
+            print("All clean, nothing to worry about ^^")
+            raise SystemExit
+        print(f"Scanned {len(packages)} packages, {len(results)} with problems")
         for score, name, version, fix in results:
             dot = " \033[32m•\033[0m" if fix else ""
             if score is None:
@@ -180,7 +183,7 @@ if args.version is None:
 vulns = query_package(args.package, args.version, "PyPI")
 
 if not vulns:
-    print("TODO: no vulns message")
+    print("All clean, nothing to worry about ^^")
 else:
     scored = [(vuln, vuln_score(vuln)) for vuln in vulns]
     known = [score for _, score in scored if score is not None]
