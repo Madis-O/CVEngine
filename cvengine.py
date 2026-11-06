@@ -6,6 +6,7 @@ import questionary
 import requests
 import subprocess
 import sys
+from cvss import CVSS4
 from packaging.version import InvalidVersion, Version
 
 os.system("")
@@ -64,6 +65,9 @@ def vuln_score(vuln):
     for entry in vuln.get("severity", []):
         if entry["type"] in ("CVSS_V3", "CVSS_V3.1", "CVSS_V3.0"):
             return cvss3_score(entry["score"])
+    for entry in vuln.get("severity", []):
+        if entry["type"] == "CVSS_V4":
+            return float(CVSS4(entry["score"]).base_score)
     return None
 
 
