@@ -170,9 +170,12 @@ if args.package is None:
         print(f"Scanned {len(packages)} packages, {len(results)} with problems")
         for score, name, version, fix in results:
             dot = " \033[32m•\033[0m" if fix else ""
+            print()
             if score is None:
                 print(f"CVSS n/a{dot}")
-            else:
+            else: 
+                print(paint(message_for(score), score))
+                print()
                 print(f"{paint(f'CVSS {score}', score)}{dot}")
             print(f"{name} {version} → {fix}" if fix else f"{name} {version}")
     raise SystemExit
