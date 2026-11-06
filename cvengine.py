@@ -4,6 +4,7 @@ import json
 import os
 import questionary
 import requests
+import shutil
 import subprocess
 import sys
 from cvss import CVSS4
@@ -138,7 +139,7 @@ def choose_scan():
     if kind == "Packages":
         return questionary.select(
             "Which packages?",
-            choices=["pip"],
+            choices=["pip", "npm"],
         ).ask()
     return None
 
@@ -153,6 +154,21 @@ def discover_pip():
     return [(item["name"], item["version"], "PyPI") for item in json.loads(result.stdout)]
 
 
+def discover_npm():
+    npm = shutil.which("npm")
+    if npm is None:
+        return []
+    result = subprocess.run(
+        [npm, "ls", "-g", "--json", "--depth=0"],
+        capture_output=True,
+        text=True,
+    )
+    dependencies = json.loads(result.stdout).get("dependencies", {})
+    return [(name, info["version"], "npm") for name, info in dependencies.items() if "version" in info]
+
+
+DISCOVERERS = {"pip": discover_pip, "npm": discover_npm}
+
 parser = argparse.ArgumentParser()
 parser.add_argument("package", nargs="?")
 parser.add_argument("version", nargs="?")
@@ -160,8 +176,11 @@ args = parser.parse_args()
 
 if args.package is None:
     source = choose_scan()
-    if source == "pip":
-        packages = discover_pip()
+    if source in DISCOVERERS:
+        packages = DISCOVERERS[source]()
+        if not packages:
+            print("Couldn't find any packages to scan")
+            raise SystemExit
         results = []
         for name, version, ecosystem in packages:
             vulns = query_package(name, version, ecosystem)
