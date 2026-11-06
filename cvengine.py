@@ -3,6 +3,7 @@ import functools
 import math
 import json
 import os
+import platform
 import questionary
 import re
 import requests
@@ -224,7 +225,7 @@ def choose_scan():
     if kind == "Packages":
         return questionary.select(
             "Which packages?",
-            choices=["pip", "npm"],
+            choices=["pip", "npm"] + (["apt"] if platform.system() == "Linux" else []),
         ).ask()
     return None
 
@@ -237,6 +238,45 @@ def discover_pip():
         check=True,
     )
     return [(item["name"], item["version"], "PyPI") for item in json.loads(result.stdout)]
+
+
+def os_ecosystem():
+    info = {}
+    with open("/etc/os-release") as handle:
+        for line in handle:
+            if "=" in line:
+                key, value = line.strip().split("=", 1)
+                info[key] = value.strip('"')
+    if info.get("ID") == "ubuntu":
+        suffix = ":LTS" if "LTS" in info.get("VERSION", "") else ""
+        return f"Ubuntu:{info['VERSION_ID']}{suffix}"
+    if info.get("ID") == "debian":
+        return f"Debian:{info['VERSION_ID'].split('.')[0]}"
+    return None
+
+
+def discover_apt():
+    ecosystem = os_ecosystem()
+    if ecosystem is None or shutil.which("dpkg-query") is None:
+        return []
+    result = subprocess.run(
+        ["dpkg-query", "-W", "-f=${Package}\t${Source}\t${Version}\t${db:Status-Status}\n"],
+        capture_output=True,
+        text=True,
+    )
+    found = {}
+    for line in result.stdout.splitlines():
+        package, source, version, status = line.split("\t")
+        if status != "installed":
+            continue
+        name = package
+        if source:
+            match = re.match(r"(\S+)(?: \((.+)\))?$", source)
+            name = match.group(1)
+            if match.group(2):
+                version = match.group(2)
+        found[(name, version)] = None
+    return [(name, version, ecosystem) for name, version in found]
 
 
 def discover_npm():
@@ -252,7 +292,7 @@ def discover_npm():
     return [(name, info["version"], "npm") for name, info in dependencies.items() if "version" in info]
 
 
-DISCOVERERS = {"pip": discover_pip, "npm": discover_npm}
+DISCOVERERS = {"pip": discover_pip, "npm": discover_npm, "apt": discover_apt}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("package", nargs="?")
