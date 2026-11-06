@@ -6,8 +6,10 @@ import questionary
 import requests
 import subprocess
 import sys
+from packaging.version import InvalidVersion, Version
 
 os.system("")
+sys.stdout.reconfigure(encoding="utf-8")
 
 AV = {"N": 0.85, "A": 0.62, "L": 0.55, "P": 0.2}
 AC = {"L": 0.77, "H": 0.44}
@@ -63,6 +65,36 @@ def vuln_score(vuln):
         if entry["type"] in ("CVSS_V3", "CVSS_V3.1", "CVSS_V3.0"):
             return cvss3_score(entry["score"])
     return None
+
+
+def top_score(vulns):
+    known = [score for score in map(vuln_score, vulns) if score is not None]
+    return max(known) if known else None
+
+
+def vuln_fix(vuln, version):
+    try:
+        current = Version(version)
+    except InvalidVersion:
+        return None
+    for affected in vuln.get("affected", []):
+        for entry in affected.get("ranges", []):
+            introduced = None
+            for event in entry.get("events", []):
+                if "introduced" in event:
+                    introduced = event["introduced"]
+                elif "fixed" in event and introduced is not None:
+                    try:
+                        if Version(introduced) <= current < Version(event["fixed"]):
+                            return Version(event["fixed"])
+                    except InvalidVersion:
+                        pass
+    return None
+
+
+def fix_version(vulns, version):
+    fixes = [fix for fix in (vuln_fix(vuln, version) for vuln in vulns) if fix is not None]
+    return max(fixes) if fixes else None
 
 
 def blend(score):
@@ -126,9 +158,20 @@ if args.package is None:
     source = choose_scan()
     if source == "pip":
         packages = discover_pip()
-        print(f"TODO: found {len(packages)} packages")
+        results = []
         for name, version, ecosystem in packages:
-            print(f"TODO: {name} {version} ({ecosystem})")
+            vulns = query_package(name, version, ecosystem)
+            if vulns:
+                results.append((top_score(vulns), name, version, fix_version(vulns, version)))
+        results.sort(key=lambda row: row[0] if row[0] is not None else -1, reverse=True)
+        print(f"TODO: scanned {len(packages)}, {len(results)} vulnerable")
+        for score, name, version, fix in results:
+            dot = " \033[32m•\033[0m" if fix else ""
+            if score is None:
+                print(f"CVSS n/a{dot}")
+            else:
+                print(f"{paint(f'CVSS {score}', score)}{dot}")
+            print(f"{name} {version} → {fix}" if fix else f"{name} {version}")
     raise SystemExit
 
 if args.version is None:
