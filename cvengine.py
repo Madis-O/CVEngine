@@ -194,7 +194,7 @@ else:
     if top is not None:
         print(paint(message_for(top), top))
         print(paint(f"CVSS {top}", top))
-    print(f"TODO: header, {len(vulns)} found")
+    print(f"Found {len(vulns)} problems in {args.package} {args.version}")
     for vuln, score in scored:
         label = paint(f"{score:>4}", score) if score is not None else " n/a"
-        print(f"TODO: row - {label} - {vuln['id']} - {vuln.get('summary', 'no summary')}")
+        print(f"{label} - {vuln['id']} - {vuln.get('summary', 'no summary')}")
