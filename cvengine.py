@@ -3,6 +3,7 @@ import math
 import json
 import os
 import questionary
+import re
 import requests
 import shutil
 import subprocess
@@ -77,12 +78,21 @@ def top_score(vulns):
     return max(known) if known else None
 
 
-def vuln_fix(vuln, version):
+def same_name(a, b, ecosystem):
+    if ecosystem == "PyPI":
+        return re.sub(r"[-_.]+", "-", a).lower() == re.sub(r"[-_.]+", "-", b).lower()
+    return a == b
+
+
+def vuln_fix(vuln, version, name, ecosystem):
     try:
         current = Version(version)
     except InvalidVersion:
         return None
     for affected in vuln.get("affected", []):
+        package = affected.get("package", {})
+        if package.get("ecosystem") != ecosystem or not same_name(package.get("name", ""), name, ecosystem):
+            continue
         for entry in affected.get("ranges", []):
             introduced = None
             for event in entry.get("events", []):
@@ -97,8 +107,8 @@ def vuln_fix(vuln, version):
     return None
 
 
-def fix_version(vulns, version):
-    fixes = [fix for fix in (vuln_fix(vuln, version) for vuln in vulns) if fix is not None]
+def fix_version(vulns, version, name, ecosystem):
+    fixes = [fix for fix in (vuln_fix(vuln, version, name, ecosystem) for vuln in vulns) if fix is not None]
     return max(fixes) if fixes else None
 
 
@@ -185,7 +195,7 @@ if args.package is None:
         for name, version, ecosystem in packages:
             vulns = query_package(name, version, ecosystem)
             if vulns:
-                results.append((top_score(vulns), name, version, fix_version(vulns, version)))
+                results.append((top_score(vulns), name, version, fix_version(vulns, version, name, ecosystem)))
         results.sort(key=lambda row: row[0] if row[0] is not None else -1, reverse=True)
         if not results:
             print("All clean, nothing to worry about ^^")
