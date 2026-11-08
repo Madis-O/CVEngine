@@ -6,11 +6,11 @@ import os
 import platform
 import questionary
 import re
-import requests
 import shutil
 import subprocess
 import sys
 from cvss import CVSS4
+from osv import query_package
 from packaging.version import InvalidVersion, Version
 
 os.system("")
@@ -207,14 +207,6 @@ def message_for(score):
     for limit, text in MESSAGES:
         if score < limit:
             return text
-
-
-def query_package(name, version, ecosystem):
-    response = requests.post(
-        "https://api.osv.dev/v1/query",
-        json={"version": version, "package": {"name": name, "ecosystem": ecosystem}}
-    )
-    return response.json().get("vulns", [])
 
 
 def choose_scan():
