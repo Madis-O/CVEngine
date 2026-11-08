@@ -1,83 +1,18 @@
 import argparse
 import functools
-import math
-import json
 import os
 import platform
 import questionary
 import re
-import shutil
-import subprocess
 import sys
-from cvss import CVSS4
+from discover import DISCOVERERS
+from display import message_for, paint
 from osv import query_package
 from packaging.version import InvalidVersion, Version
+from scoring import top_score, vuln_score
 
 os.system("")
 sys.stdout.reconfigure(encoding="utf-8")
-
-AV = {"N": 0.85, "A": 0.62, "L": 0.55, "P": 0.2}
-AC = {"L": 0.77, "H": 0.44}
-UI = {"N": 0.85, "R": 0.62}
-CIA = {"H": 0.56, "L": 0.22, "N": 0.0}
-PR_UNCHANGED = {"N": 0.85, "L": 0.62, "H": 0.27}
-PR_CHANGED = {"N": 0.85, "L": 0.68, "H": 0.5}
-
-ANCHORS = [
-    (1, (140, 140, 140)),
-    (2, (190, 200, 90)),
-    (4, (240, 210, 40)),
-    (6, (240, 130, 30)),
-    (8, (150, 0, 0)),
-    (10, (220, 0, 0)),
-]
-
-MESSAGES = [
-    (2, "You are just fine bucko"),
-    (4, "Psh I don't know about you but I'd have a eye out and update"),
-    (6, "I'd update if I were you..."),
-    (8, "Yikes you should really update"),
-    (10.1, "UPDATE NOW !! NOW !! NOW !! NOW !!"),
-]
-
-
-def roundup(value):
-    scaled = round(value * 100000)
-    if scaled % 10000 == 0:
-        return scaled / 100000.0
-    return (math.floor(scaled / 10000) + 1) / 10.0
-
-
-def cvss3_score(vector):
-    parts = dict(item.split(":") for item in vector.split("/")[1:])
-    changed = parts["S"] == "C"
-    pr = (PR_CHANGED if changed else PR_UNCHANGED)[parts["PR"]]
-    iss = 1 - (1 - CIA[parts["C"]]) * (1 - CIA[parts["I"]]) * (1 - CIA[parts["A"]])
-    if changed:
-        impact = 7.52 * (iss - 0.029) - 3.25 * (iss - 0.02) ** 15
-    else:
-        impact = 6.42 * iss
-    exploit = 8.22 * AV[parts["AV"]] * AC[parts["AC"]] * pr * UI[parts["UI"]]
-    if impact <= 0:
-        return 0.0
-    if changed:
-        return roundup(min(1.08 * (impact + exploit), 10))
-    return roundup(min(impact + exploit, 10))
-
-
-def vuln_score(vuln):
-    for entry in vuln.get("severity", []):
-        if entry["type"] in ("CVSS_V3", "CVSS_V3.1", "CVSS_V3.0"):
-            return cvss3_score(entry["score"])
-    for entry in vuln.get("severity", []):
-        if entry["type"] == "CVSS_V4":
-            return float(CVSS4(entry["score"]).base_score)
-    return None
-
-
-def top_score(vulns):
-    known = [score for score in map(vuln_score, vulns) if score is not None]
-    return max(known) if known else None
 
 
 def same_name(a, b, ecosystem):
@@ -188,27 +123,6 @@ def fix_version(vulns, version, name, ecosystem):
     return max(fixes) if fixes else None
 
 
-def blend(score):
-    if score <= ANCHORS[0][0]:
-        return ANCHORS[0][1]
-    for (low, low_rgb), (high, high_rgb) in zip(ANCHORS, ANCHORS[1:]):
-        if score <= high:
-            t = (score - low) / (high - low)
-            return tuple(round(a + (b - a) * t) for a, b in zip(low_rgb, high_rgb))
-    return ANCHORS[-1][1]
-
-
-def paint(text, score):
-    r, g, b = blend(score)
-    return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
-
-
-def message_for(score):
-    for limit, text in MESSAGES:
-        if score < limit:
-            return text
-
-
 def choose_scan():
     kind = questionary.select(
         "What are we scanning today?",
@@ -221,70 +135,6 @@ def choose_scan():
         ).ask()
     return None
 
-
-def discover_pip():
-    result = subprocess.run(
-        [sys.executable, "-m", "pip", "list", "--format=json"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return [(item["name"], item["version"], "PyPI") for item in json.loads(result.stdout)]
-
-
-def os_ecosystem():
-    info = {}
-    with open("/etc/os-release") as handle:
-        for line in handle:
-            if "=" in line:
-                key, value = line.strip().split("=", 1)
-                info[key] = value.strip('"')
-    if info.get("ID") == "ubuntu":
-        suffix = ":LTS" if "LTS" in info.get("VERSION", "") else ""
-        return f"Ubuntu:{info['VERSION_ID']}{suffix}"
-    if info.get("ID") == "debian":
-        return f"Debian:{info['VERSION_ID'].split('.')[0]}"
-    return None
-
-
-def discover_apt():
-    ecosystem = os_ecosystem()
-    if ecosystem is None or shutil.which("dpkg-query") is None:
-        return []
-    result = subprocess.run(
-        ["dpkg-query", "-W", "-f=${Package}\t${Source}\t${Version}\t${db:Status-Status}\n"],
-        capture_output=True,
-        text=True,
-    )
-    found = {}
-    for line in result.stdout.splitlines():
-        package, source, version, status = line.split("\t")
-        if status != "installed":
-            continue
-        name = package
-        if source:
-            match = re.match(r"(\S+)(?: \((.+)\))?$", source)
-            name = match.group(1)
-            if match.group(2):
-                version = match.group(2)
-        found[(name, version)] = None
-    return [(name, version, ecosystem) for name, version in found]
-
-
-def discover_npm():
-    npm = shutil.which("npm")
-    if npm is None:
-        return []
-    result = subprocess.run(
-        [npm, "ls", "-g", "--json", "--depth=0"],
-        capture_output=True,
-        text=True,
-    )
-    dependencies = json.loads(result.stdout).get("dependencies", {})
-    return [(name, info["version"], "npm") for name, info in dependencies.items() if "version" in info]
-
-
-DISCOVERERS = {"pip": discover_pip, "npm": discover_npm, "apt": discover_apt}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("package", nargs="?")
