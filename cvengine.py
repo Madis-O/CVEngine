@@ -21,12 +21,18 @@ def main():
     if args.package is None:
         source = choose_scan()
         if source in DISCOVERERS:
+            report.finding()
             packages = DISCOVERERS[source]()
             if not packages:
+                report.clear_status()
                 report.no_packages()
                 raise SystemExit
+            try:
+                all_vulns = query_many(packages, report.checking)
+            finally:
+                report.clear_status()
             results = []
-            for (name, version, ecosystem), vulns in zip(packages, query_many(packages)):
+            for (name, version, ecosystem), vulns in zip(packages, all_vulns):
                 if vulns:
                     results.append((top_score(vulns), name, version, fix_version(vulns, version, name, ecosystem)))
             results.sort(key=lambda row: row[0] if row[0] is not None else -1, reverse=True)

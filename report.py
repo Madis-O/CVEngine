@@ -1,5 +1,26 @@
+import sys
 from display import message_for, paint
 from scoring import vuln_score
+
+
+def status(text):
+    if sys.stderr.isatty():
+        sys.stderr.write(f"\r{text}\033[K")
+        sys.stderr.flush()
+
+
+def clear_status():
+    if sys.stderr.isatty():
+        sys.stderr.write("\r\033[K")
+        sys.stderr.flush()
+
+
+def finding():
+    status("CVEngine ][ firing up ... finding packages")
+
+
+def checking(done, total):
+    status(f"CVEngine ][ burning through ... {done}/{total}")
 
 
 def clean():

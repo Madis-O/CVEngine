@@ -1,5 +1,5 @@
 import requests
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Need to make my shit more modulize, makes building in the long term muuchh cleaner and easier to scale. fawk
 def query_package(name, version, ecosystem):
@@ -10,6 +10,12 @@ def query_package(name, version, ecosystem):
     return response.json().get("vulns", [])
 
 
-def query_many(packages, workers=10):
+def query_many(packages, on_progress=None, workers=10):
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        return list(pool.map(lambda package: query_package(*package), packages))
+        futures = [pool.submit(query_package, *package) for package in packages]
+        if on_progress:
+            on_progress(0, len(packages))
+        for done, _ in enumerate(as_completed(futures), start=1):
+            if on_progress:
+                on_progress(done, len(packages))
+        return [future.result() for future in futures]
