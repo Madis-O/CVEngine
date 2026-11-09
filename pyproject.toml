@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cvengine"
+version = "0.1.0"
+description = "CLI tool tbat scans your packages for vulnerabilities"
+requires-python = ">=3.9"
+dependencies = ["requests", "questionary", "packaging", "cvss"]
+
+[project.scripts]
+cvng = "cvengine:main"
+cvengine = "cvengine:main"
+
+[tool.setuptools]
+py-modules = ["cvengine", "discover", "display", "osv", "scoring", "versions"]
