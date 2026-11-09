@@ -4,7 +4,7 @@ import sys
 import report
 from discover import DISCOVERERS
 from menu import choose_scan
-from osv import query_package
+from osv import query_many, query_package
 from scoring import top_score
 from versions import fix_version
 
@@ -26,8 +26,7 @@ def main():
                 report.no_packages()
                 raise SystemExit
             results = []
-            for name, version, ecosystem in packages:
-                vulns = query_package(name, version, ecosystem)
+            for (name, version, ecosystem), vulns in zip(packages, query_many(packages)):
                 if vulns:
                     results.append((top_score(vulns), name, version, fix_version(vulns, version, name, ecosystem)))
             results.sort(key=lambda row: row[0] if row[0] is not None else -1, reverse=True)
