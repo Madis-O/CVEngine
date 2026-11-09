@@ -27,6 +27,17 @@ def clean():
     print("All clean, nothing to worry about ^^")
 
 
+def unchecked(failures, after_report=False, show=10):
+    noun = "package" if len(failures) == 1 else "packages"
+    if after_report:
+        print()
+    print(f"Couldn't check {len(failures)} {noun}:")
+    for error in failures[:show]:
+        print(f"  {error.name} {error.version} - {error.reason}")
+    if len(failures) > show:
+        print(f"  ... and {len(failures) - show} more")
+
+
 def no_packages():
     print("Couldn't find any packages to scan")
 

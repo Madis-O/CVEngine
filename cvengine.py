@@ -28,18 +28,23 @@ def main():
                 report.no_packages()
                 raise SystemExit
             try:
-                all_vulns = query_many(packages, report.checking)
+                answers = query_many(packages, report.checking)
             finally:
                 report.clear_status()
             results = []
-            for (name, version, ecosystem), vulns in zip(packages, all_vulns):
-                if vulns:
+            failures = []
+            for (name, version, ecosystem), (vulns, error) in zip(packages, answers):
+                if error:
+                    failures.append(error)
+                elif vulns:
                     results.append((top_score(vulns), name, version, fix_version(vulns, version, name, ecosystem)))
             results.sort(key=lambda row: row[0] if row[0] is not None else -1, reverse=True)
-            if not results:
+            if results:
+                report.scan_report(len(packages) - len(failures), results)
+            elif not failures:
                 report.clean()
-                raise SystemExit
-            report.scan_report(len(packages), results)
+            if failures:
+                report.unchecked(failures, after_report=bool(results))
         raise SystemExit
 
     if args.version is None:
