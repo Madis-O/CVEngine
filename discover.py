@@ -29,7 +29,7 @@ def discover_pip():
         raise DiscoverError("pip", "pip gave unreadable output")
 
 
-def os_ecosystem(path="/etc/os-release"):
+def read_os_release(source, path="/etc/os-release"):
     info = {}
     try:
         with open(path) as handle:
@@ -38,7 +38,12 @@ def os_ecosystem(path="/etc/os-release"):
                     key, value = line.strip().split("=", 1)
                     info[key] = value.strip('"')
     except OSError:
-        raise DiscoverError("apt", f"couldn't read {path}")
+        raise DiscoverError(source, f"couldn't read {path}")
+    return info
+
+
+def os_ecosystem(path="/etc/os-release"):
+    info = read_os_release("apt", path)
     if info.get("ID") not in ("ubuntu", "debian"):
         raise DiscoverError("apt", f"{info.get('PRETTY_NAME', 'this distro')} isn't supported yet")
     if not info.get("VERSION_ID"):
@@ -80,6 +85,44 @@ def discover_apt():
     return [(name, version, ecosystem) for name, version in found]
 
 
+RPM_NAMES = {"rocky": "Rocky Linux", "almalinux": "AlmaLinux"}
+
+
+def rpm_ecosystem(path="/etc/os-release"):
+    info = read_os_release("rpm", path)
+    if info.get("ID") not in RPM_NAMES:
+        raise DiscoverError("rpm", f"{info.get('PRETTY_NAME', 'this distro')} isn't supported yet")
+    if not info.get("VERSION_ID"):
+        raise DiscoverError("rpm", "deadass couldn't tell which release this is")
+    return f"{RPM_NAMES[info['ID']]}:{info['VERSION_ID'].split('.')[0]}"
+
+
+def discover_rpm():
+    ecosystem = rpm_ecosystem()
+    if shutil.which("rpm") is None:
+        raise DiscoverError("rpm", "rpm isn't installed")
+    try:
+        result = subprocess.run(
+            ["rpm", "-qa", "--qf", "%{NAME}\t%{SOURCERPM}\t%{EPOCHNUM}\t%{VERSION}-%{RELEASE}\n"],
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        raise DiscoverError("rpm", "rpm couldn't run")
+    found = {}
+    for line in result.stdout.splitlines():
+        fields = line.split("\t")
+        if len(fields) != 4:
+            continue
+        package, source, epoch, version = fields
+        if source == "(none)":
+            continue
+        name = source[:-8] if source.endswith(".src.rpm") else source
+        name = name.rsplit("-", 2)[0] if name.count("-") >= 2 else package
+        found[(name, f"{epoch}:{version}" if epoch not in ("0", "(none)") else version)] = None
+    return [(name, version, ecosystem) for name, version in found]
+
+
 def discover_npm():
     npm = shutil.which("npm")
     if npm is None:
@@ -100,4 +143,4 @@ def discover_npm():
 
 
 # New source = write the function, add it here, dne. Thats the whole point of splitting this shit up
-DISCOVERERS = {"pip": discover_pip, "npm": discover_npm, "apt": discover_apt}
+DISCOVERERS = {"pip": discover_pip, "npm": discover_npm, "apt": discover_apt, "rpm": discover_rpm}

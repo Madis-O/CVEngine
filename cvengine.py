@@ -59,6 +59,8 @@ def run():
                 report.clean()
             if failures:
                 report.unchecked(failures, after_report=bool(results))
+        if source == "folder":
+            report.coming_soon()
         raise SystemExit
 
     if args.version is None:

@@ -58,6 +58,10 @@ def interrupted():
     print("Stopped, scan cancelled")
 
 
+def coming_soon():
+    print("not here yet sooorrryyyyyyyyyyyyyyy")
+
+
 def no_packages():
     print("Couldn't find any packages to scan")
 
