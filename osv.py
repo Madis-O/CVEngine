@@ -41,14 +41,22 @@ def query_package(name, version, ecosystem, tries=3, timeout=10):
     raise OSVError(name, version, reason)
 
 
+def check_reachable():
+    query_package("pip", "1.0", "PyPI", tries=2, timeout=5)
+
+
 def query_many(packages, on_progress=None, workers=10):
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(query_package, *package) for package in packages]
-        if on_progress:
-            on_progress(0, len(packages))
-        for done, _ in enumerate(as_completed(futures), start=1):
+        try:
             if on_progress:
-                on_progress(done, len(packages))
+                on_progress(0, len(packages))
+            for done, _ in enumerate(as_completed(futures), start=1):
+                if on_progress:
+                    on_progress(done, len(packages))
+        except KeyboardInterrupt:
+            pool.shutdown(wait=False, cancel_futures=True)
+            raise
         answers = []
         for future in futures:
             try:

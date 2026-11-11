@@ -38,6 +38,26 @@ def unchecked(failures, after_report=False, show=10):
         print(f"  ... and {len(failures) - show} more")
 
 
+def discover_failed(error):
+    print(f"Couldn't list {error.source} packages: {error.reason}")
+
+
+def unreachable(error):
+    print(f"Couldn't reach the database: {error.reason}")
+
+
+def all_failed(failures):
+    reasons = {error.reason for error in failures}
+    if len(reasons) == 1:
+        print(f"Every lookup failed: {reasons.pop()}")
+    else:
+        print("Every lookup failed, try again later")
+
+
+def interrupted():
+    print("Stopped, scan cancelled")
+
+
 def no_packages():
     print("Couldn't find any packages to scan")
 

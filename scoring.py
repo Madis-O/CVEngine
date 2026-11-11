@@ -1,6 +1,7 @@
 # Mister tyson, you dippin in the chocolate !?
 import math
 from cvss import CVSS4
+from cvss.exceptions import CVSSError
 
 AV = {"N": 0.85, "A": 0.62, "L": 0.55, "P": 0.2}
 AC = {"L": 0.77, "H": 0.44}
@@ -36,11 +37,17 @@ def cvss3_score(vector):
 # ik krijg de tyfus van dit
 def vuln_score(vuln):
     for entry in vuln.get("severity", []):
-        if entry["type"] in ("CVSS_V3", "CVSS_V3.1", "CVSS_V3.0"):
-            return cvss3_score(entry["score"])
+        try:
+            if entry["type"] in ("CVSS_V3", "CVSS_V3.1", "CVSS_V3.0"):
+                return cvss3_score(entry["score"])
+        except (KeyError, ValueError, IndexError, TypeError, AttributeError):
+            continue
     for entry in vuln.get("severity", []):
-        if entry["type"] == "CVSS_V4":
-            return float(CVSS4(entry["score"]).base_score)
+        try:
+            if entry["type"] == "CVSS_V4":
+                return float(CVSS4(entry["score"]).base_score)
+        except (CVSSError, KeyError, ValueError, TypeError, AttributeError):
+            continue
     return None
 
 

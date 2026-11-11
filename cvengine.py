@@ -2,9 +2,9 @@ import argparse
 import os
 import sys
 import report
-from discover import DISCOVERERS
+from discover import DISCOVERERS, DiscoverError
 from menu import choose_scan
-from osv import query_many, query_package
+from osv import OSVError, check_reachable, query_many, query_package
 from scoring import top_score
 from versions import fix_version
 
@@ -12,7 +12,7 @@ os.system("")
 sys.stdout.reconfigure(encoding="utf-8")
 
 
-def main():
+def run():
     parser = argparse.ArgumentParser()
     parser.add_argument("package", nargs="?")
     parser.add_argument("version", nargs="?")
@@ -22,11 +22,22 @@ def main():
         source = choose_scan()
         if source in DISCOVERERS:
             report.finding()
-            packages = DISCOVERERS[source]()
+            try:
+                packages = DISCOVERERS[source]()
+            except DiscoverError as error:
+                report.clear_status()
+                report.discover_failed(error)
+                raise SystemExit(1)
             if not packages:
                 report.clear_status()
                 report.no_packages()
                 raise SystemExit
+            try:
+                check_reachable()
+            except OSVError as error:
+                report.clear_status()
+                report.unreachable(error)
+                raise SystemExit(1)
             try:
                 answers = query_many(packages, report.checking)
             finally:
@@ -39,6 +50,9 @@ def main():
                 elif vulns:
                     results.append((top_score(vulns), name, version, fix_version(vulns, version, name, ecosystem)))
             results.sort(key=lambda row: row[0] if row[0] is not None else -1, reverse=True)
+            if len(failures) == len(packages):
+                report.all_failed(failures)
+                raise SystemExit(1)
             if results:
                 report.scan_report(len(packages) - len(failures), results)
             elif not failures:
@@ -50,12 +64,25 @@ def main():
     if args.version is None:
         parser.error("version is required with a package")
 
-    vulns = query_package(args.package, args.version, "PyPI")
+    try:
+        vulns = query_package(args.package, args.version, "PyPI")
+    except OSVError as error:
+        report.unchecked([error])
+        raise SystemExit(1)
 
     if not vulns:
         report.clean()
     else:
         report.package_report(args.package, args.version, vulns)
+
+
+def main():
+    try:
+        run()
+    except KeyboardInterrupt:
+        report.clear_status()
+        report.interrupted()
+        raise SystemExit(130)
 
 
 if __name__ == "__main__":
