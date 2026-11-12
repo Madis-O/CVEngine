@@ -14,4 +14,4 @@ cvng = "cvengine:main"
 cvengine = "cvengine:main"
 
 [tool.setuptools]
-py-modules = ["cvengine", "discover", "display", "menu", "osv", "report", "scoring", "versions"]
+py-modules = ["cvengine", "discover", "display", "menu", "osv", "project", "report", "scoring", "versions"]

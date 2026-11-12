@@ -21,3 +21,8 @@ def choose_scan():
     if kind == "A Project Folder":
         return "folder"
     return None
+
+#The new project folder scanning option is here, shit will scan your requirements.txt file and check all the packages in there.
+
+def choose_folder():
+    return questionary.path("Which folder ??", default=".").ask()

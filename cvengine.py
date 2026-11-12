@@ -5,8 +5,9 @@ import os
 import sys
 import report
 from discover import DISCOVERERS, DiscoverError
-from menu import choose_scan
+from menu import choose_folder, choose_scan
 from osv import OSVError, check_reachable, query_many, query_package
+from project import read_project
 from scoring import top_score
 from versions import fix_version
 
@@ -22,17 +23,25 @@ def run():
 
     if args.package is None:
         source = choose_scan()
-        if source in DISCOVERERS:
+        folder = choose_folder() if source == "folder" else None #new project folder scanning option here
+        if source in DISCOVERERS or folder:
             report.finding()
+            skipped = []
             try:
-                packages = DISCOVERERS[source]()
+                if folder:
+                    packages, skipped = read_project(folder)
+                else:
+                    packages = DISCOVERERS[source]()
             except DiscoverError as error:
                 report.clear_status()
                 report.discover_failed(error)
                 raise SystemExit(1)
             if not packages:
                 report.clear_status()
-                report.no_packages()
+                if skipped:
+                    report.unchecked(skipped)
+                else:
+                    report.no_packages()
                 raise SystemExit
             try:
                 check_reachable()
@@ -57,12 +66,10 @@ def run():
                 raise SystemExit(1)
             if results:
                 report.scan_report(len(packages) - len(failures), results)
-            elif not failures:
+            elif not failures and not skipped:
                 report.clean()
-            if failures:
-                report.unchecked(failures, after_report=bool(results))
-        if source == "folder":
-            report.coming_soon()
+            if failures or skipped:
+                report.unchecked(failures + skipped, after_report=bool(results))
         raise SystemExit
 
     if args.version is None:
