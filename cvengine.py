@@ -1,3 +1,5 @@
+#CVEngine.py  The central engine for the CLI, handles the flow of the program and calls other modules
+# Basically the Central Engine. Menu -> find packages -> ask OSV -> print the verdicts. Will change up soon to be beyond packages.
 import argparse
 import os
 import sys

@@ -1,4 +1,5 @@
-# meow meow meow guess i start with this bullshit :3
+#Display.py   Output formatting for the CLI
+# The pretty part. Turns a CVSS score into a color (grey -> blood red scaling with the score) and picks the blunt message that goes with it
 ANCHORS = [
     (1, (140, 140, 140)),
     (2, (190, 200, 90)),
@@ -9,12 +10,13 @@ ANCHORS = [
 ]
 
 MESSAGES = [
-    (2, "You are just fine bucko"),
-    (4, "Psh I don't know about you but I'd have a eye out and update"),
-    (6, "I'd update if I were you..."),
-    (8, "Yikes you should really update"),
-    (10.1, "UPDATE NOW !! NOW !! NOW !! NOW !!"),
+    (0.1, "(None) no risk"),
+    (4.0, "(Low) negligible risk"),
+    (7.0, "(Medium) update when you can"),
+    (9.0, "(High) update soon"),
+    (10.1, "(Critical) Update now"),
 ]
+
 
 
 def blend(score):

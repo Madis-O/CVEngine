@@ -1,3 +1,5 @@
+#Menu.py  Menu for the CLI
+# The arrow key menus where you pick what to scan. Only shows options that actually work on your machine considering cross compatibility.
 import platform
 import shutil
 import questionary

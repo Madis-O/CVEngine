@@ -1,4 +1,5 @@
-# Mister tyson, you dippin in the chocolate !?
+#Scoring.py  Scoring for the CLI
+# Does the CVSS math (v3 by hand, v4 with a library) to turn a vuln into a 0-10 number as CVSS has as standard
 import math
 from cvss import CVSS4
 from cvss.exceptions import CVSSError

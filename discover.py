@@ -1,3 +1,5 @@
+#Discover.py  Discover installed packages and their versions
+# Goes looking for whats installed on your machine (shit like pip, npm, apt, rpm) and hands back name + version + which ecosystem its from so that it can be forwarded to OSV for a vulnerability check. 
 import json
 import re
 import shutil

@@ -1,4 +1,5 @@
-# VERSIONS BRUHHHHH, lets hope modulation doesnt completelety break this shit.
+#Versions.py  Version comparison for the CLI
+# Figures out which version is newer (pip/npm, deb and rpm all count differently, fuck me) so we can say what to update TO
 import functools
 import re
 from packaging.version import InvalidVersion, Version

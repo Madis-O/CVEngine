@@ -1,3 +1,5 @@
+#Report.py  Reporting for the CLI
+# Everything that gets printed is here
 import sys
 from display import message_for, paint
 from scoring import vuln_score

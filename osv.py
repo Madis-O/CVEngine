@@ -1,3 +1,5 @@
+#OSV.py  Query the OSV API for vulnerabilities
+# Asks OSV.dev "is this package version fucked ??" and 10 lookups at once, retries when the internet is being stubborn
 import requests
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
